@@ -2,7 +2,7 @@ pipeline {
     agent any
 
         environment {
-            SCANNER_HOME = tool 'sonar-scanner'
+            SCANNER_HOME = tool 'SonarQube'
             }
 		
 	stages {
@@ -26,7 +26,7 @@ pipeline {
                 withSonarQubeEnv('sonarqube-server'){
                     sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectname=python-webapp-tomcat \
                     -Dsonar.java.binaries=. \
-                    -Dsonar.projectkey=pet-store '''
+                    -Dsonar.projectkey=python-webapp-tomcat '''
                 }
             }
         }
