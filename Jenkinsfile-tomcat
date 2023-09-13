@@ -1,0 +1,69 @@
+pipeline {
+    agent any
+
+        environment {
+            SCANNER_HOME = tool 'sonar-scanner'
+            }
+		
+	stages {
+        stage('Git checkout from Github') {
+            steps{
+                git branch: 'main', changelog: 'false', poll: 'false', url: 'https://github.com/ManjuNK/Python-WebApp-Tomcat.git'
+                }
+            }
+        stage('code compile') {
+            steps{
+                sh 'mvn clean compile'
+                }
+		}
+        stage('Unit test'){
+            steps{
+                sh 'mvn test'
+            }
+		}
+        stage('SONAEQUBE Analysis') { 
+            steps {
+                withSonarQubeEnv('sonarqube-server'){
+                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectname=python-webapp-tomcat \
+                    -Dsonar.java.binaries=. \
+                    -Dsonar.projectkey=pet-store '''
+                }
+            }
+        }
+        stage('OWASP Dependency'){
+            steps {
+                dependencyCheck additionalArguments: '--scan ./ ', odcInstallation: 'DP'
+                dependencyCheckpublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+        stage('Build') {
+            steps{
+                sh "mvn clean install"
+			}
+		}
+		stage('Docker Build and Push'){
+			steps{
+				script{
+					withDockerRegistry(credentialsId: 'docker-cred', toolname: 'docker'){
+					
+					sh "docker build -t petclinic ."
+					sh "docker tag petclinic manjunk/pet-clinic:latest"
+					sh "docker push manjunk/pet-clinic:latest"
+					
+					}
+				}
+			}
+		}
+		stage('Trivy Image Scan'){
+			steps{
+				sh " trivy image manjunk/petclinic:latest"
+			}
+		}
+		stage('Deploy to Tomcat'){
+			steps{
+				sh "cp /var/lib/jenkins/workspace/Python-WebApp-Tomcat/target/petclinic.war /opt/tomcat/webapps/ "
+			}
+		}
+
+    }		
+}
